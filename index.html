@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Millitron Quality</title>
+<style>
+body { font-family: sans-serif; margin:0; padding:20px; background-color:#f5f5f5; }
+h1,h2 { text-align:center; }
+input, button { font-size: 18px; padding:10px; margin:5px; width:90%; max-width:300px; box-sizing:border-box; }
+button { cursor:pointer; }
+.center { display:flex; justify-content:center; align-items:center; flex-direction:column; }
+.row { display:flex; justify-content:center; gap:10px; flex-wrap:wrap; margin:10px 0; }
+.photos { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:10px 0; }
+.photos img { max-width:120px; cursor:pointer; border:1px solid #ccc; }
+.record { border:1px solid #ccc; padding:10px; margin:10px auto; width:90%; max-width:400px; }
+#overlay { position:fixed; display:none; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); justify-content:center; align-items:center; z-index:9999; }
+#overlay img { max-width:90%; max-height:90%; }
+.list-entry { display:flex; flex-direction:column; align-items:center; margin-bottom:15px; width:100%; max-width:300px; }
+.hidden { display:none; }
+@media (max-width:600px){
+  input, button { font-size:16px; padding:8px; }
+  .photos img { max-width:90px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="loginPage" class="center">
+  <h1>Millitron Quality Login</h1>
+  <input type="text" id="loginUser" placeholder="Username">
+  <input type="password" id="loginPass" placeholder="Password">
+  <button id="loginBtn">Login</button>
+  <button id="userManageBtn">User Management</button>
+</div>
+
+<!-- User Management -->
+<div id="userPage" class="center hidden">
+  <h2>User Management</h2>
+  <input type="text" id="newUser" placeholder="Username">
+  <input type="password" id="newPass" placeholder="Password">
+  <div class="row">
+    <button id="addUserBtn">Add User</button>
+    <button id="deleteUserBtn">Delete User</button>
+    <button id="backToLoginBtn">Back</button>
+  </div>
+</div>
+
+<!-- Homepage -->
+<div id="homePage" class="center hidden">
+  <h1>Millitron Quality Homepage</h1>
+  <div class="row">
+    <button id="addEntryBtn">Add Production Entry</button>
+    <button id="searchBtn">Search Records</button>
+  </div>
+  <div>Logged in as: <span id="currentUserDisplay"></span></div>
+  <button id="logoutBtn">Logout</button>
+</div>
+
+<!-- Add Entry -->
+<div id="addEntryPage" class="center hidden">
+  <h2>Add Production Entry</h2>
+  <div class="list-entry"><label>Production Order:</label><input type="text" id="prodOrder"></div>
+  <div class="list-entry"><label>DR Number:</label><input type="text" id="drNumber"></div>
+  <div class="list-entry"><label>Date:</label><input type="date" id="date"></div>
+  <div class="list-entry">
+    <label>Photos:</label>
+    <input type="file" id="photo1" accept="image/*">
+    <input type="file" id="photo2" accept="image/*">
+    <input type="file" id="photo3" accept="image/*">
+    <div class="photos" id="photoPreview"></div>
+  </div>
+  <div class="row">
+    <button id="saveEntryBtn">Save Entry</button>
+    <button id="backFromAdd">Back</button>
+  </div>
+</div>
+
+<!-- Search -->
+<div id="searchPage" class="center hidden">
+  <h2>Search Records</h2>
+  <input type="text" id="searchInput" placeholder="Prod Order, DR, or Date">
+  <button id="searchRecordsBtn">Search</button>
+  <div id="records"></div>
+  <button id="backFromSearch">Back</button>
+</div>
+
+<!-- Overlay -->
+<div id="overlay" onclick="this.style.display='none'">
+  <img id="overlayImg" src="">
+</div>
+
+<script>
+// -------- User System ----------
+let users = [];
+try { users = JSON.parse(localStorage.getItem('users')||'[]'); } catch(e){ users=[]; }
+if(users.length===0){ users.push({username:'admin', password:'password'}); localStorage.setItem('users', JSON.stringify(users)); }
+
+function login(){
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  const found = users.find(x=>x.username===u && x.password===p);
+  if(found){ 
+    localStorage.setItem('currentUser', u);
+    document.getElementById('currentUserDisplay').textContent = u;
+    showHome();
+  } else { alert('Invalid credentials. Use admin/password for first login.'); }
+}
+function logout(){ 
+  localStorage.removeItem('currentUser'); 
+  document.getElementById('loginUser').value='';
+  document.getElementById('loginPass').value='';
+  hideAll(); 
+  document.getElementById('loginPage').classList.remove('hidden'); 
+}
+
+// -------- User Management ----------
+function showUserManagement(){ hideAll(); document.getElementById('userPage').classList.remove('hidden'); }
+function backToLogin(){ hideAll(); document.getElementById('loginPage').classList.remove('hidden'); }
+
+function addUser(){
+  const u = document.getElementById('newUser').value.trim();
+  const p = document.getElementById('newPass').value;
+  if(!u || !p){ alert('Enter username & password'); return; }
+  if(users.find(x=>x.username===u)){ alert('User exists'); return; }
+  users.push({username:u,password:p});
+  localStorage.setItem('users', JSON.stringify(users));
+  alert('User added');
+  document.getElementById('newUser').value='';
+  document.getElementById('newPass').value='';
+}
+
+function deleteUser(){
+  const u = document.getElementById('newUser').value.trim();
+  users = users.filter(x=>x.username!==u);
+  localStorage.setItem('users', JSON.stringify(users));
+  alert('User deleted if existed');
+  document.getElementById('newUser').value='';
+  document.getElementById('newPass').value='';
+}
+
+// -------- Navigation ----------
+function hideAll(){ ['loginPage','userPage','homePage','addEntryPage','searchPage'].forEach(id=>document.getElementById(id).classList.add('hidden')); }
+function showHome(){ hideAll(); document.getElementById('homePage').classList.remove('hidden'); }
+function showAddEntry(){ hideAll(); document.getElementById('addEntryPage').classList.remove('hidden'); }
+function showSearch(){ hideAll(); document.getElementById('searchPage').classList.remove('hidden'); }
+function backToHome(){ 
+  document.getElementById('searchInput').value=''; 
+  document.getElementById('records').innerHTML=''; 
+  showHome(); 
+}
+
+// -------- Production Entries ----------
+function fileToBase64(file){ 
+  return new Promise((resolve,reject)=>{ 
+    if(!file) resolve(null); 
+    const reader=new FileReader(); 
+    reader.onload=()=>resolve(reader.result); 
+    reader.onerror=err=>reject(err); 
+    reader.readAsDataURL(file); 
+  }); 
+}
+function loadRecords(){ return JSON.parse(localStorage.getItem('prodRecords')||'[]'); }
+function saveRecords(records){ localStorage.setItem('prodRecords', JSON.stringify(records)); }
+
+const previewDiv=document.getElementById('photoPreview');
+['photo1','photo2','photo3'].forEach(id=>{
+  document.getElementById(id).addEventListener('change', async e=>{
+    const file=e.target.files[0];
+    if(file){
+      const reader=new FileReader();
+      reader.onload=ev=>{
+        const img=document.createElement('img');
+        img.src=ev.target.result;
+        img.addEventListener('click',()=>zoomPhoto(ev.target.result));
+        previewDiv.appendChild(img);
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+});
+
+document.getElementById('saveEntryBtn').addEventListener('click', async ()=>{
+  const prodOrder=document.getElementById('prodOrder').value.trim();
+  const drNumber=document.getElementById('drNumber').value.trim();
+  const date=document.getElementById('date').value;
+  const currentUser=localStorage.getItem('currentUser')||'Unknown';
+  if(!prodOrder || !drNumber || !date){ alert('Fill all fields'); return; }
+
+  // Save record WITHOUT photos
+  const records=loadRecords();
+  records.push({ prodOrder, drNumber, date, user: currentUser, photos: [] });
+  saveRecords(records);
+
+  alert('Entry saved!');
+  ['prodOrder','drNumber','date'].forEach(id=>document.getElementById(id).value='');
+  previewDiv.innerHTML=''; // keep photo upload functional
+});
+
+// -------- Search & Delete ----------
+function displayRecords(filter=''){
+  const container=document.getElementById('records'); container.innerHTML='';
+  loadRecords().filter(r=>{
+    if(!filter) return true; 
+    return r.prodOrder.includes(filter)||r.drNumber.includes(filter)||r.date.includes(filter); 
+  }).forEach((r,idx)=>{
+    const div=document.createElement('div'); div.className='record';
+    const photosHtml=r.photos.map(p=>p?`<img src="${p}" style="max-width:90px;" onclick="zoomPhoto('${p}')">`:'').join('');
+    div.innerHTML=`<strong>Prod Order:</strong> ${r.prodOrder}<br>
+                   <strong>DR Number:</strong> ${r.drNumber}<br>
+                   <strong>Date:</strong> ${r.date}<br>
+                   <strong>User:</strong> ${r.user}<br>
+                   <div class="photos">${photosHtml}</div>
+                   <button onclick="deleteRecord(${idx})">Delete</button>`;
+    container.appendChild(div);
+  });
+}
+function searchRecords(){ const filter=document.getElementById('searchInput').value.trim(); displayRecords(filter); }
+function deleteRecord(idx){ const recs=loadRecords(); recs.splice(idx,1); saveRecords(recs); displayRecords(document.getElementById('searchInput').value.trim()); }
+
+// -------- Photo Zoom ----------
+function zoomPhoto(src){ document.getElementById('overlayImg').src=src; document.getElementById('overlay').style.display='flex'; }
+
+// -------- Buttons ----------
+document.getElementById('loginBtn').addEventListener('click', login);
+document.getElementById('logoutBtn').addEventListener('click', logout);
+document.getElementById('addEntryBtn').addEventListener('click', showAddEntry);
+document.getElementById('searchBtn').addEventListener('click', showSearch);
+document.getElementById('backFromAdd').addEventListener('click', backToHome);
+document.getElementById('backFromSearch').addEventListener('click', backToHome);
+document.getElementById('userManageBtn').addEventListener('click', showUserManagement);
+document.getElementById('addUserBtn').addEventListener('click', addUser);
+document.getElementById('deleteUserBtn').addEventListener('click', deleteUser);
+document.getElementById('backToLoginBtn').addEventListener('click', backToLogin);
+
+// -------- On Load ----------
+hideAll(); document.getElementById('loginPage').classList.remove('hidden');
+</script>
+
+</body>
+</html>
